@@ -37,3 +37,9 @@ artifacts/
 
 # Auto generated
 tools/install-powershell.ps1
+
+test/*.dll
+test/*.pdb
+test/SHiPS.formats.ps1xml
+test/SHiPS.psd1
+test/SHiPS.psm1

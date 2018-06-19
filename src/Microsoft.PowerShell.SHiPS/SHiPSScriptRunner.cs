@@ -17,6 +17,46 @@ namespace Microsoft.PowerShell.SHiPS
     /// </summary>
     internal class PSScriptRunner
     {
+        internal static IEnumerable<IPathNode> InvokeScriptBlock(
+           IProviderContext context,
+           SHiPSDirectory node,
+           SHiPSDrive drive = null)
+        {
+            drive = drive ?? context.Drive as SHiPSDrive;
+            var methodToCall = Constants.GetChildItem;
+            var parameters = context.GetSHiPSParameters();
+            var usingDynamicParameter = parameters.BoundParameters.UsingDynamicParameter(node, drive);
+
+            var results = InvokeScriptBlock<IEnumerable<IPathNode>>(context, methodToCall, parameters, node, drive);
+
+            if (results == null)
+            {
+                return Enumerable.Empty<IPathNode>();
+            }
+
+            return (node.UseCache && !usingDynamicParameter) ? ProcessResultsWithCache(results, context, node, drive) : ProcessResultsWithNoCache(results, context, node, drive);
+        }
+
+        internal static IEnumerable<object> InvokeScriptBlock(
+           IProviderContext context,
+           string methodToCall,
+           SHiPSBase node,
+           SHiPSDrive drive = null)
+        {
+            drive = drive ?? context.Drive as SHiPSDrive;
+            var parameters = context.GetSHiPSParameters();
+            var usingDynamicParameter = parameters.BoundParameters.UsingDynamicParameter(node, drive);
+
+            var results = InvokeScriptBlock<IEnumerable<IPathNode>>(context, methodToCall, parameters, node, drive);
+
+            if (results == null)
+            {
+                return Enumerable.Empty<IPathNode>();
+            }
+
+            return results;
+        }
+
         /// <summary>
         /// Invokes a PowerShell script block.
         /// </summary>
@@ -24,29 +64,28 @@ namespace Microsoft.PowerShell.SHiPS
         /// <param name="node">ContainerNode object that is corresponding to the current path.</param>
         /// <param name="drive">Current drive that a user is in use.</param>
         /// <returns></returns>
-        internal static IEnumerable<IPathNode> InvokeScriptBlock(
-            IProviderContext context,
-            SHiPSDirectory node,
-            SHiPSDrive drive)
-        {           
+        internal static ICollection<object> InvokeScriptBlock<T>(
+        IProviderContext context,
+        string methodToCall,
+        SHiPSParameters parameters,
+        SHiPSBase node,
+        SHiPSDrive drive)
+        {
             var progressId = 1;
             var activityId = Resource.RetrievingData;
             int percentComplete = 1;
-            var desciption = (Resource.FetchingData).StringFormat(node.Name??"");
+            var desciption = (Resource.FetchingData).StringFormat(node.Name ?? "");
             int waittime = 1000; // 1s
 
-            CancellationTokenSource cts = new CancellationTokenSource();        
+            CancellationTokenSource cts = new CancellationTokenSource();
             var progressTracker = new ProgressTracker(progressId, activityId, desciption, node.BuiltinProgress);
 
             try
             {
                 ICollection<object> results = new List<object>();
-                var methodToCall = Constants.GetChildItem;
 
                 var errors = new ConcurrentBag<ErrorRecord>();
-                var parameters = context.GetSHiPSParameters();
-                var usingDynamicParameter = parameters.BoundParameters.UsingDynamicParameter(node, drive);
-                 
+
                 //PowerShell engine hangs if we call like this in default runspace
                 //var task = Task.Factory.StartNew(() =>
                 //{
@@ -68,7 +107,7 @@ namespace Microsoft.PowerShell.SHiPS
 
                 }, cts.Token);
 
-                
+
                 var stop = task.Wait(waittime, cts.Token);
 
                 if (!stop && !cts.Token.IsCancellationRequested && !context.Stopping)
@@ -83,17 +122,21 @@ namespace Microsoft.PowerShell.SHiPS
                 }
 
                 progressTracker.End(context);
+                var dir = node as SHiPSDirectory;
 
                 if (errors.Count > 0)
                 {
                     // Cleanup child items only if the user type '-force'.
                     if (context.Force)
                     {
-                        //remove the cached child nodes for the failed node
-                        node.Children?.Clear();
+                        if (dir != null)
+                        {
+                            //remove the cached child nodes for the failed node
+                            dir.Children?.Clear();
 
-                        //remove the node from its parent's children list so that it won't show again when a user types dir -force
-                        node.Parent?.Children.RemoveSafe(node.Name);
+                            //remove the node from its parent's children list so that it won't show again when a user types dir -force
+                            dir.Parent?.Children.RemoveSafe(node.Name);
+                        }
                     }
 
                     // report the error if there are any
@@ -107,19 +150,24 @@ namespace Microsoft.PowerShell.SHiPS
                     // return nothing.
                     context.WriteDebug(Resource.InvokeScriptReturnNull.StringFormat(node.Name, context.Path));
 
-                    if (errors.Count == 0)
+                    if (dir != null)
                     {
-                        // do not mark the node visited if there is an error. e.g., if login to azure fails, 
-                        // we should not cache so that a user can dir again once the cred resolved.
-                        node.ItemNavigated = true;
+                        if (errors.Count == 0)
+                        {
+                            // do not mark the node visited if there is an error. e.g., if login to azure fails, 
+                            // we should not cache so that a user can dir again once the cred resolved.
+                            dir.ItemNavigated = true;
+                        }
+
+                        //clear the child node list as the current node has null or empty children (results)
+                        if (context.Force) { dir.Children?.Clear(); }
                     }
 
-                    //clear the child node list as the current node has null or empty children (results)
-                    if (context.Force) { node.Children?.Clear();}
-                    return Enumerable.Empty<IPathNode>();
+                    return null;
                 }
 
-                return (node.UseCache && !usingDynamicParameter) ? ProcessResultsWithCache(results, context, node, drive) : ProcessResultsWithNoCache(results, context, node, drive);
+                return results;
+                //return (node.UseCache && !usingDynamicParameter) ? ProcessResultsWithCache(results, context, node, drive) : ProcessResultsWithNoCache(results, context, node, drive);
             }
             finally
             {
@@ -185,7 +233,7 @@ namespace Microsoft.PowerShell.SHiPS
                     yield break;
                 }
 
-                var cnode = node.GetChildPNode(result, drive, cache:false);
+                var cnode = node.GetChildPNode(result, drive, cache: false);
                 if (cnode != null)
                 {
                     yield return cnode;
@@ -214,7 +262,7 @@ namespace Microsoft.PowerShell.SHiPS
 
                 var output = new PSDataCollection<PSObject>();
                 output.DataAdded += output_DataAdded;
-                
+
                 if (errorAction != null)
                 {
                     powerShell.Streams.Error.DataAdded += errorAction;
@@ -232,11 +280,11 @@ namespace Microsoft.PowerShell.SHiPS
         }
 
         internal static ICollection<object> CallPowerShellScript(
-            SHiPSDirectory node,
+            SHiPSBase node,
             IProviderContext context,
             System.Management.Automation.PowerShell powerShell,
             SHiPSParameters parameters,
-            string methodName,            
+            string methodName,
             EventHandler<DataAddedEventArgs> outputAction,
             EventHandler<DataAddedEventArgs> errorAction)
         {
@@ -272,8 +320,8 @@ namespace Microsoft.PowerShell.SHiPS
                 //make script block             
                 powerShell.AddScript("[CmdletBinding()] param([object]$object)  $object.{0}()".StringFormat(methodName));
                 powerShell.AddParameter("object", node);
-                
-                
+
+
                 if (parameters != null)
                 {
                     if (parameters.Debug)
@@ -290,7 +338,7 @@ namespace Microsoft.PowerShell.SHiPS
 
                 return output.Count == 0 ? null : output;
             }
-            finally 
+            finally
             {
                 powerShell.Streams.Error.DataAdded -= errorAction;
             }

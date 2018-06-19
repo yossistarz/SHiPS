@@ -198,7 +198,7 @@ namespace Microsoft.PowerShell.SHiPS
         }
 
 
-        internal static bool UsingDynamicParameter(this Dictionary<string, object> boundParameters, SHiPSDirectory node, SHiPSDrive drive)
+        internal static bool UsingDynamicParameter(this Dictionary<string, object> boundParameters, SHiPSBase node, SHiPSDrive drive)
         {
             if (node.SHiPSProviderContext.DynamicParameters == null) {return false;}
 
