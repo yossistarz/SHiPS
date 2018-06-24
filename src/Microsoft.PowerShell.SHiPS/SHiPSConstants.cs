@@ -17,6 +17,7 @@
         internal static readonly string GetChildItemDynamicParameters = "GetChildItemDynamicParameters";
         internal static readonly string GetChildItem = "GetChildItem";
         internal static readonly string GetContentReader = "GetContentReader";
+        internal static readonly string GetContentDynamicParameters = "GetContentDynamicParameters";
 
         internal static string[] DefinedCommands = {
             "Set-Location",

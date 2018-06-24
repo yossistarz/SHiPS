@@ -16,11 +16,13 @@ namespace Microsoft.PowerShell.SHiPS
     /// <summary>
     /// Defines actions that applies to a ContainerNode.
     /// </summary>
-    internal class ContainerNodeService : PathNodeBase
+    internal class ContainerNodeService : NodeServiceBase
     {
         private readonly SHiPSDrive _drive;
         private readonly SHiPSDirectory _container;
         private static readonly string _directory = "+";
+
+        protected override SHiPSBase Item => _container;
 
         internal ContainerNodeService(SHiPSDrive drive, object container, SHiPSDirectory parent)
         {

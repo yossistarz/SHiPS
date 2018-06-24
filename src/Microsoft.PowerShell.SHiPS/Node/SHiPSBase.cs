@@ -1,4 +1,5 @@
-﻿using CodeOwls.PowerShell.Paths.Extensions;
+﻿using System;
+using CodeOwls.PowerShell.Paths.Extensions;
 using CodeOwls.PowerShell.Provider.PathNodeProcessors;
 
 namespace Microsoft.PowerShell.SHiPS
@@ -66,6 +67,25 @@ namespace Microsoft.PowerShell.SHiPS
             get { return SHiPSProviderContext; }
         }
 
+
+        /// <summary>
+        /// It is expected that the drive class in PowerShell implements the GetChildItem().
+        /// </summary>
+        /// <returns></returns>
+        public virtual object GetContentReader()
+        {
+            throw new NotImplementedException("Cannot use the Get-Content CmdLet on this path. The directory or file doesn't implement the GetContentReader function.");
+        }
+
+        /// <summary>
+        /// Gets the dynamic parameters for the get-childitem cmdlet.
+        /// </summary>
+        /// <returns></returns>
+        public virtual object GetContentDynamicParameters()
+        {
+            return null;
+        }
+
         #region Internal Properties
 
         /// <summary>
@@ -97,7 +117,7 @@ namespace Microsoft.PowerShell.SHiPS
                 return _builtinProgress ?? BuiltinProgressDefaultValue;
             }
             set { _builtinProgress = value; }
-        } 
+        }
 
         #endregion
     }
