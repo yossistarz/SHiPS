@@ -30,7 +30,7 @@ namespace Microsoft.PowerShell.SHiPS
         private static readonly string _SHiPSModuleName = "SHiPS.psd1";
         private Runspace _runspace;
         //Support pattern: Module#Type
-        private static readonly Regex ModuleAndTypeRegex = new Regex(@"^(.[^#]+)#(.[^\\]*)\\?(.*)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex ModuleAndTypeRegex = new Regex(@"^(.[^#]+)#(.[^\\]*)\\*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         internal const string _homePath = "HOME";
 
         internal SHiPSDrive(PSDriveInfo driveInfo, string rootInfo, SHiPSProvider provider)
@@ -87,11 +87,10 @@ namespace Microsoft.PowerShell.SHiPS
 
             _provider.WriteVerbose(modulePath);
 
-            var nameParameter = match.Groups.Count > 3 ? $",'{match.Groups[3].Value}'" : string.Empty;
-
             //create the instance of root module
             var createRootInstance = string.Format(CultureInfo.InvariantCulture,
-                @"using module '{0}'; $mod=get-module {1}; &($mod){{[{2}]::new('{2}'{3})}}", modulePath, match.Groups[1], match.Groups[2], nameParameter);
+                @"using module '{0}'; $mod=get-module {1}; &($mod){{[{2}]::new('{2}')}}", modulePath, match.Groups[1], match.Groups[2]);
+
 
             _provider.WriteVerbose(createRootInstance);
 
