@@ -1,7 +1,7 @@
-@{
+﻿@{
     RootModule= 'SHiPS.psm1'
-    ModuleVersion = '0.7.5'
-    GUID = 'A5FE6B04-385F-470F-9347-66EB3645B422'
+    ModuleVersion = '0.8.0'
+    GUID = 'd8f30f8e-191e-4d48-b66b-d6a1bfb79604'
     Author = 'Microsoft Corporation'
     CompanyName = 'Microsoft Corporation'
     Copyright = '© Microsoft Corporation. All rights reserved.'
@@ -33,6 +33,9 @@
 * Allowed to navigate home directory, e.g., 'dir ~' or 'cd ~' under SHiPS based provider drive.
 ## 0.7.2
 * Bug fix for 'dir -force' case
+
+## 0.8.0
+* Add support for GetContent for folders and files
 
 '@
         }
